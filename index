@@ -88,7 +88,6 @@
 </head>
 <body>
   <div class="factor-tree-container">
-    <h2>Interactive Factor Tree</h2>
     <p id="instructions"></p>
     <svg id="factorTree"></svg>
     <div id="result"></div>

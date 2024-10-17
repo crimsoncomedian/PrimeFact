@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Interactive Factor Tree</title>
+  <style>
+    /* Import Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap');
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f7f9fc;
+      font-family: 'Open Sans', sans-serif;
+    }
+
+    .factor-tree-container {
+      max-width: 100%;
+      margin: 0 auto;
+      text-align: center;
+      padding: 10px;
+      background-color: #ffffff;
+      border-radius: 8px;
+      box-sizing: border-box;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #333;
+      font-size: 18px;
+    }
+
+    #instructions {
+      font-size: 14px;
+      color: #555;
+      margin-bottom: 10px;
+    }
+
+    #factorTree {
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .prime-number {
+      stroke: #28a745;
+      stroke-width: 2px;
+      fill: #e9f5ec;
+    }
+
+    text {
+      font-size: 16px;
+      cursor: pointer;
+      user-select: none;
+      fill: #333;
+      transition: fill 0.2s;
+    }
+
+    text:hover {
+      fill: #007bff;
+    }
+
+    /* Style for the button */
+    #resetButton {
+      padding: 8px 16px;
+      font-size: 14px;
+      margin-top: 15px;
+      cursor: pointer;
+      background-color: #007bff;
+      color: #ffffff;
+      border: none;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+      display: none; /* Hide the button initially */
+    }
+
+    #resetButton:hover {
+      background-color: #0056b3;
+    }
+
+    /* Style for the result */
+    #result {
+      font-size: 16px;
+      margin-top: 15px;
+      text-align: center;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="factor-tree-container">
+    <h2>Interactive Factor Tree</h2>
+    <p id="instructions"></p>
+    <svg id="factorTree"></svg>
+    <div id="result"></div>
+    <button id="resetButton">Generate New Number</button>
+  </div>
+
+  <script>
+    // Function to check if a number is prime
+    function isPrime(n) {
+      if (n <= 1) return false;
+      if (n <= 3) return true;
+      if (n % 2 === 0 || n % 3 === 0) return false;
+      for (let i = 5; i * i <= n; i += 6) {
+        if (n % i === 0 || n % (i + 2) === 0) return false;
+      }
+      return true;
+    }
+
+    // Function to get factors of a composite number
+    function getFactors(n) {
+      for (let i = 2; i <= Math.sqrt(n); i++) {
+        if (n % i === 0) {
+          return [i, n / i];
+        }
+      }
+      return [n]; // Should not reach here for composite numbers
+    }
+
+    // Function to generate a random composite number between 4 and 100
+    function getRandomCompositeNumber() {
+      let num;
+      do {
+        num = Math.floor(Math.random() * 97) + 4; // Numbers between 4 and 100
+      } while (isPrime(num));
+      return num;
+    }
+
+    // Variables for SVG dimensions
+    let svgWidth = 350; // Default width
+    const nodeSpacingXRatio = 0.2; // Spacing as a ratio of SVG width
+    const nodeSpacingY = 80; // Vertical spacing between nodes
+
+    // Store all nodes in the factor tree
+    let allNodes = [];
+    let initialNumber = null;
+    let maxY = 0; // To track the maximum Y position
+
+    // Initialize the factor tree
+    function initializeFactorTree() {
+      const svg = document.getElementById('factorTree');
+      svg.innerHTML = ''; // Clear previous content
+      document.getElementById('result').textContent = ''; // Clear previous result
+      document.getElementById('resetButton').style.display = 'none'; // Hide the button
+      maxY = 0; // Reset maxY
+
+      // Get the actual width of the container
+      const containerWidth = document.querySelector('.factor-tree-container').offsetWidth;
+      svgWidth = containerWidth - 20; // Adjust for padding
+      svg.setAttribute('width', svgWidth);
+
+      initialNumber = getRandomCompositeNumber();
+
+      // Update the instruction text with the initial number
+      document.getElementById('instructions').textContent = `Click on the factors to find the prime factorization of the number below. Start by clicking on ${initialNumber}.`;
+
+      const rootNode = {
+        value: initialNumber,
+        x: svgWidth / 2,
+        y: 30,
+        hasFactored: false,
+        isPrime: isPrime(initialNumber),
+        parent: null,
+        children: [],
+        element: null,
+        isCircled: false,
+      };
+
+      allNodes = [rootNode]; // Reset the nodes list
+      maxY = rootNode.y; // Initialize maxY
+      drawNode(rootNode, svg);
+
+      // Adjust SVG height based on maxY
+      const svgHeight = maxY + 50; // Add some padding at the bottom
+      svg.setAttribute('height', svgHeight);
+    }
+
+    // Draw a node
+    function drawNode(node, svg) {
+      // Update maxY
+      if (node.y > maxY) {
+        maxY = node.y;
+      }
+
+      // Create the text element for the number
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', node.x);
+      text.setAttribute('y', node.y);
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('dominant-baseline', 'middle');
+      text.textContent = node.value;
+      svg.appendChild(text);
+      node.element = text; // Store reference to the text element
+
+      text.addEventListener('click', () => {
+        if (node.hasFactored) return;
+        if (isPrime(node.value)) {
+          // Circle the prime number with animation
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          circle.setAttribute('cx', node.x);
+          // Adjusted cy value to center the circle vertically around the number
+          circle.setAttribute('cy', node.y - 4); // Adjusted position
+          circle.setAttribute('r', 0); // Start with radius 0 for animation
+          circle.setAttribute('class', 'prime-number');
+          svg.insertBefore(circle, text); // Ensure circle is behind text
+
+          // Animate the circle expansion
+          circle.animate([
+            { r: 0 },
+            { r: 16 } // Adjusted radius for smaller size
+          ], {
+            duration: 300,
+            fill: 'forwards'
+          });
+
+          node.isCircled = true;
+          checkAllPrimesCircled();
+        } else {
+          // Factor the composite number with animation
+          const factors = getFactors(node.value);
+          node.hasFactored = true;
+          node.children = [];
+          const numChildren = factors.length;
+          const nodeSpacingX = svgWidth * nodeSpacingXRatio;
+          const totalWidth = (numChildren - 1) * nodeSpacingX;
+          factors.forEach((factor, index) => {
+            const childX = node.x - totalWidth / 2 + index * nodeSpacingX;
+            const childY = node.y + nodeSpacingY;
+            const childNode = {
+              value: factor,
+              x: childX,
+              y: childY,
+              hasFactored: false,
+              isPrime: isPrime(factor),
+              parent: node,
+              children: [],
+              element: null,
+              isCircled: false,
+            };
+            node.children.push(childNode);
+            allNodes.push(childNode);
+
+            // Update maxY
+            if (childY > maxY) {
+              maxY = childY;
+              // Adjust SVG height as we add more nodes
+              const svgHeight = maxY + 50; // Add some padding at the bottom
+              svg.setAttribute('height', svgHeight);
+            }
+
+            // Draw curved line from parent to child
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            const controlPointY = node.y + (nodeSpacingY / 2);
+            const d = `
+              M ${node.x} ${node.y + 10}
+              C ${node.x} ${controlPointY}, ${childX} ${controlPointY}, ${childX} ${childY - 20}
+            `;
+            path.setAttribute('d', d.trim());
+            path.setAttribute('stroke', '#555');
+            path.setAttribute('fill', 'none');
+            path.setAttribute('stroke-width', '2');
+            svg.appendChild(path);
+
+            // Recursively draw the child node with a slight delay
+            setTimeout(() => {
+              drawNode(childNode, svg);
+            }, 200);
+          });
+        }
+      });
+    }
+
+    // Check if all primes are circled
+    function checkAllPrimesCircled() {
+      // Get all leaf nodes (nodes without children)
+      const leafNodes = allNodes.filter(node => node.children.length === 0);
+
+      // Check if there are any composite leaf nodes
+      const hasCompositeLeafNodes = leafNodes.some(node => !node.isPrime);
+
+      if (hasCompositeLeafNodes) {
+        // There are composite leaf nodes that haven't been factored yet
+        return;
+      }
+
+      // From the leaf nodes, get only the primes
+      const primeLeafNodes = leafNodes.filter(node => node.isPrime);
+
+      // Check if all prime leaf nodes have been circled
+      const allCircled = primeLeafNodes.every(node => node.isCircled);
+
+      if (primeLeafNodes.length > 0 && allCircled) {
+        displayResult();
+      }
+    }
+
+    // Display the prime factorization result
+    function displayResult() {
+      const primes = [];
+
+      // Collect all prime numbers from leaf nodes
+      allNodes.forEach(node => {
+        if (node.isPrime && node.children.length === 0) {
+          primes.push(node.value);
+        }
+      });
+
+      // Sort the primes for consistent ordering
+      primes.sort((a, b) => a - b);
+
+      // Construct the prime factorization string
+      const factorization = primes.join(' × ');
+      const resultText = `${initialNumber} = ${factorization}`;
+
+      // Display the result with a fade-in effect
+      const resultDiv = document.getElementById('result');
+      resultDiv.style.opacity = 0;
+      resultDiv.textContent = resultText;
+
+      resultDiv.animate([
+        { opacity: 0 },
+        { opacity: 1 }
+      ], {
+        duration: 500,
+        fill: 'forwards'
+      });
+
+      // Show the "Generate New Number" button
+      const resetButton = document.getElementById('resetButton');
+      resetButton.style.display = 'inline-block';
+    }
+
+    // Initialize on page load
+    window.onload = initializeFactorTree;
+
+    // Reset button functionality
+    document.getElementById('resetButton').addEventListener('click', initializeFactorTree);
+
+    // Adjust SVG size on window resize
+    window.addEventListener('resize', initializeFactorTree);
+  </script>
+</body>
+</html>
